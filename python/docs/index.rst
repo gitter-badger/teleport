@@ -56,7 +56,7 @@ Design Notes
 ------------
 
 These notes explain some of the design decisions of the Teleport specification.
-They are here to be refuted and rewised, via the `mailing list <https://groups.google.com/forum/#!forum/teleport-json>`_.
+They are here to be refuted and rewised, through the project's `mailing list <https://groups.google.com/forum/#!forum/teleport-json>`_.
 
 .. toctree::
    :maxdepth: 1
