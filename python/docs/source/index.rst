@@ -36,12 +36,62 @@ Contents
 --------
 
 .. toctree::
+    :maxdepth: 2
+
+    guide
+    types
+    extending
+
+Reference
+---------
+
+.. toctree::
    :maxdepth: 2
 
-   guide
-   types
-   extending
-   api
-   notes
+   api/type
+   api/typemap
+   api/errors
+
+Design Notes
+------------
+
+These notes explain some of the design decisions of the Teleport specification.
+They are here to be refuted and rewised, via the `mailing list <https://groups.google.com/forum/#!forum/teleport-json>`_.
+
+.. toctree::
+   :maxdepth: 1
+
+   design/principles
+   design/json
+   design/numbers
+   design/datetime
+
+History
+-------
+
+Teleport was started in May 2013 and developed as part of `Cosmic <http://www.cosmic-api.com>`_,
+little-known web API library by yours truly. It was rewritted from scratch in
+November 2014 based on a new and improved specification. With enough eyes and
+some helping hands, we should see version 1.0 soon.
+
+.. toctree::
+   :maxdepth: 2
+
    changelog
 
+Contributing
+------------
+
+Teleport is a one-man operation with a big scope. The `GitHub repository <http://github.com/cosmic-api/teleport>`_
+is kept in good order to welcome all kinds of patches:
+
+* Improvements to the specification (see also: the `mailing list <https://groups.google.com/forum/#!forum/teleport-json>`_)
+* Interesting recipes for the :mod:`teleport.examples` module
+* Difficult test cases for the language-agnostic test suite
+* Tweaks, fixes, aggressive refactorings
+* Removing immature humor from the documentation
+
+If you are interested in building web APIs with Teleport, take a look at
+`Cosmic <http://www.cosmic-api.com/>`_, a project by the same author. It will
+be updated soon with the new Teleport implementation and will become the best
+showcase for Teleport.
