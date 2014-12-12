@@ -1,6 +1,6 @@
 import unittest2
 
-from teleport.examples import t
+from teleport.examples import T as t
 from teleport.compat import PY3, PYPY
 
 
@@ -15,8 +15,8 @@ class CustomTypeTest(unittest2.TestCase):
         self.assertTrue(t({"Nullable": "Integer"}).check(1))
         self.assertTrue(t({"Nullable": "Integer"}).check(None))
         self.assertFalse(t({"Nullable": "Integer"}).check(True))
-        self.assertEqual(t({"Nullable": "Integer"}).from_json(1), 1)
-        self.assertEqual(t({"Nullable": "Integer"}).from_json(None), None)
+        self.assertEqual(t({"Nullable": "Integer"}).deserialize(1), 1)
+        self.assertEqual(t({"Nullable": "Integer"}).deserialize(None), None)
 
         s = t({"Array": {"Nullable": "String"}})
 
@@ -33,8 +33,8 @@ class CustomTypeTest(unittest2.TestCase):
 
     @unittest2.skipIf(PYPY or PY3, "Skipping pickle test for PyPy and Python3")
     def test_PythonObject(self):
-        self.assertEqual(t("PythonObject").to_json(1), 'I1\n.')
-        self.assertEqual(t("PythonObject").to_json({1, 2}),
+        self.assertEqual(t("PythonObject").serialize(1), 'I1\n.')
+        self.assertEqual(t("PythonObject").serialize({1, 2}),
             'c__builtin__\nset\np0\n((lp1\nI1\naI2\natp2\nRp3\n.')
-        self.assertEqual(t("PythonObject").from_json(
+        self.assertEqual(t("PythonObject").deserialize(
             'c__builtin__\nset\np0\n((lp1\nI1\naI2\natp2\nRp3\n.'), {1, 2})

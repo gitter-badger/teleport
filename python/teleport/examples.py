@@ -1,49 +1,52 @@
 import re
 import pickle
 
-from teleport import TypeMap, ConcreteType, GenericType, Undefined
+from teleport import Invalid
+from teleport import T as OriginalT
 
-t = TypeMap()
+
+class T(OriginalT):
+    pass
 
 
-@t.register("Color")
-class ColorType(ConcreteType):
+@T.register("Color")
+class ColorType(object):
 
-    def impl_check(self, value):
-        if not t("String").check(value):
+    def check(self, T, value):
+        if not T("String").check(value):
             return False
         return re.compile('^#[0-9a-f]{6}$').match(value) is not None
 
 
-@t.register("Nullable")
-class NullableType(GenericType):
+@T.register("Nullable")
+class NullableType(object):
 
-    def process_param(self, param):
-        self.child = self.t(param)
+    def __init__(self, T, param):
+        self.child = T(param)
 
-    def impl_from_json(self, value):
+    def deserialize(self, T, value):
         if value is None:
             return None
-        return self.child.from_json(value)
+        return self.child.deserialize(value)
 
-    def to_json(self, value):
+    def serialize(self, T, value):
         if value is None:
             return None
-        return self.child.to_json(value)
+        return self.child.serialize(value)
 
 
-@t.register("PythonObject")
-class PythonObjectType(ConcreteType):
+@T.register("PythonObject")
+class PythonObjectType(object):
 
-    def impl_from_json(self, json_value):
-        if not t("String").check(json_value):
-            raise Undefined("PythonObject must be a string")
+    def deserialize(self, T, json_value):
+        if not T("String").check(json_value):
+            raise Invalid("PythonObject must be a string")
         try:
             return pickle.loads(json_value)
         except:
-            raise Undefined("PythonObject could not be unpickled")
+            raise Invalid("PythonObject could not be unpickled")
 
-    def to_json(self, native_value):
+    def serialize(self, T, native_value):
         return pickle.dumps(native_value)
 
 

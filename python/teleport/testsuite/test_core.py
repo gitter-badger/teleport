@@ -1,28 +1,30 @@
 from unittest2 import TestCase
 from datetime import datetime
 
-from teleport import t, utc, Undefined, ValidationError
+from teleport import T, utc, Invalid, ValidationError
 from teleport.compat import PY2
 
+t = T
 
-class T(object):
+
+class SimpleTest(object):
     pairs = []
     undefined = []
 
-    def test_from_json(self):
+    def test_deserialize(self):
         for pair in self.pairs:
-            self.assertEqual(t(self.schema).from_json(pair[0]), pair[1])
+            self.assertEqual(t(self.schema).deserialize(pair[0]), pair[1])
 
-    def test_to_json(self):
+    def test_serialize(self):
         for pair in self.pairs:
-            self.assertEqual(t(self.schema).to_json(pair[1]), pair[0])
+            self.assertEqual(t(self.schema).serialize(pair[1]), pair[0])
 
 
 ds = '2013-10-18T01:58:24.904349Z'
 dn = datetime(2013, 10, 18, 1, 58, 24, 904349, tzinfo=utc)
 
 
-class IntegerTest(T, TestCase):
+class IntegerTest(SimpleTest, TestCase):
     schema = "Integer"
     pairs = [(1, 1)]
 
@@ -32,48 +34,48 @@ class IntegerTest(T, TestCase):
 
 
 
-class DecimalTest(T, TestCase):
+class DecimalTest(SimpleTest, TestCase):
     schema = "Decimal"
     pairs = [(0.1, 0.1), (1e10, 1e10)]
 
 
-class StringTest(T, TestCase):
+class StringTest(SimpleTest, TestCase):
     schema = "String"
     pairs = [(u"lol", u"lol")]
 
 
-class BooleanTest(T, TestCase):
+class BooleanTest(SimpleTest, TestCase):
     schema = "Boolean"
     pairs = [(True, True), (False, False)]
 
 
-class DateTimeTest(T, TestCase):
+class DateTimeTest(SimpleTest, TestCase):
     schema = "DateTime"
     pairs = [(ds, dn)]
 
 
-class JSONTest(T, TestCase):
+class JSONTest(SimpleTest, TestCase):
     schema = "JSON"
     o = object()
     pairs = [(o, o)]
 
 
-class SchemaTest(T, TestCase):
+class SchemaTest(SimpleTest, TestCase):
     schema = "Schema"
     pairs = [(u'Integer', u'Integer')]
 
 
-class ArrayTest(T, TestCase):
+class ArrayTest(SimpleTest, TestCase):
     schema = {"Array": "DateTime"}
     pairs = [([ds, ds], [dn, dn])]
 
 
-class MapTest(T, TestCase):
+class MapTest(SimpleTest, TestCase):
     schema = {"Map": "DateTime"}
     pairs = [({"a": ds, "b": ds}, {"a": dn, "b": dn})]
 
 
-class StructTest(T, TestCase):
+class StructTest(SimpleTest, TestCase):
     schema = {"Struct": {
         "required": {"a": "DateTime"},
         "optional": {"b": "Integer"}}}
@@ -94,7 +96,7 @@ class ErrorTest(TestCase):
     def test_errors(self):
 
         try:
-            self.t.from_json({
+            self.t.deserialize({
                 "tags": ["a", True],
                 "lol": 1
             })
@@ -102,7 +104,7 @@ class ErrorTest(TestCase):
             pass
             """
             import pdb; pdb.set_trace()
-            self.assertEqual(m.to_json(), [
+            self.assertEqual(m.serialize(), [
                 {"error": ["MissingField", "name"], "pointer": []},
                 {"error": ["UnexpectedField", "lol"], "pointer": []},
                 {"error": [], "pointer": ["tags", 1]}

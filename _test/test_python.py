@@ -5,7 +5,7 @@ import unittest2
 from draft02_suite import suite as tests
 
 sys.path.append(os.path.join('../python', os.path.dirname(__file__)))
-from teleport import t
+from teleport import T as t
 
 
 def make_pass_test(schema, datum):

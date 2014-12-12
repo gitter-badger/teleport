@@ -38,6 +38,7 @@ pythonDocs = (src) ->
       test -f #{tmp}/src/python/docs/Makefile && cp -R #{tmp}/src/python/docs/source #{tmp}/docs; true
       test -f #{tmp}/src/python/docs/index.rst && cp -R #{tmp}/src/python/docs #{tmp}/docs; true
       cp #{tmp}/intersphinx/python2/python2.inv #{tmp}/docs
+      cp #{tmp}/src/python/CHANGES.rst #{tmp}
       echo '\\nhtml_theme_path = ["../flask-sphinx-themes/flask-sphinx-themes-master"]\\n' >> #{tmp}/docs/conf.py
       echo '\\nimport os, sys; sys.path.append(os.path.join(os.path.dirname(__file__), "../../src/python"))\\n' >> #{tmp}/docs/conf.py
       echo '\\nimport os, sys; sys.path.append(os.path.join(os.path.dirname(__file__), "../src/python"))\\n' >> #{tmp}/docs/conf.py
@@ -189,7 +190,7 @@ site = obnoxygen.tarFile
 
 currentSource = obnoxygen.workingTree
   name: 'current-source'
-  deps: glob.sync "python/docs/source/**"
+  deps: glob.sync "python/docs/**"
     .concat glob.sync "python/teleport/**"
     .concat ['_spec/teleport.xml', 'python/CHANGES.rst']
 

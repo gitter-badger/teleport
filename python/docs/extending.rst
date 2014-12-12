@@ -92,18 +92,18 @@ nervous, we will use it to give Teleport the same power:
 
         def from_json(self, json_value):
             if not t("String").check(json_value):
-                raise Undefined("PythonObject must be a string")
+                raise Invalid("PythonObject must be a string")
             try:
                 return pickle.loads(json_value)
             except:
-                raise Undefined("PythonObject could not be unpickled")
+                raise Invalid("PythonObject could not be unpickled")
 
         def to_json(self, native_value):
             return pickle.dumps(native_value)
 
 Note that if we implement :meth:`~teleport.Type.from_json`, implementing
 :meth:`~teleport.Type.check` is not necessary, as long as the former behaves
-correctly by raising :exc:`~teleport.Undefined`.
+correctly by raising :exc:`~teleport.Invalid`.
 
 Now we can use it to serialize most Python objects:
 
