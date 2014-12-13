@@ -6,14 +6,14 @@ from collections import OrderedDict, namedtuple
 from functools import partial
 
 from .compat import test_integer, test_long, normalize_string
-from .util import utc, format_multiple_errors
+from .util import utc, format_multiple_errors, ErrorGenerator, ForceReturn, Errors, IterableError
 
 
 Implementation = namedtuple("Implementation", [
-    'param', 'check', 'serialize', 'deserialize', 'deserialize_iter'])
+    'param', 'check', 'serialize', 'deserialize'])
 
 BoundImplementation = namedtuple("Implementation", [
-    'check', 'serialize', 'deserialize', 'deserialize_iter'])
+    'check', 'serialize', 'deserialize'])
 
 
 def partial2(f, *args, **kwargs):
@@ -29,8 +29,7 @@ def implementation_from_class(T, type_cls):
         param=type_cls,
         check=props.get('check', None),
         serialize=props.get('serialize', None),
-        deserialize=props.get('deserialize', None),
-        deserialize_iter=props.get('deserialize_iter', None))
+        deserialize=props.get('deserialize', None))
 
     if '__init__' not in props:
         inst = type_cls()
@@ -38,8 +37,7 @@ def implementation_from_class(T, type_cls):
         return BoundImplementation(
             check=partial2(imp.check, inst, T),
             serialize=partial2(imp.serialize, inst, T),
-            deserialize=partial2(imp.deserialize, inst, T),
-            deserialize_iter=partial2(imp.deserialize_iter, inst, T))
+            deserialize=partial2(imp.deserialize, inst, T))
 
     return imp
 
@@ -49,11 +47,10 @@ def bind_generic(imp, T, json_param):
     return BoundImplementation(
         check=partial2(imp.check, param, T),
         serialize=partial2(imp.serialize, param, T),
-        deserialize=partial2(imp.deserialize, param, T),
-        deserialize_iter=partial2(imp.deserialize_iter, param, T))
+        deserialize=partial2(imp.deserialize, param, T))
 
 
-class Invalid(Exception):
+class Invalid(IterableError):
 
     def __init__(self, message, location=()):
         self.message = message
@@ -80,38 +77,6 @@ class ValidationError(Invalid):
     def __str__(self):
         tups = [(e.message, e.location) for e in self.exceptions]
         return format_multiple_errors(tups)
-
-
-class ForceReturn(Exception):
-    """Not an error, return value from error iterator"""
-    def __init__(self, value):
-        self.value = value
-
-
-class Placeholder(object):
-
-    def check(self, T, json_value):
-        """
-        :param: JSON
-        :return: bool
-        """
-        raise NotImplementedError()
-
-    def deserialize(self, T, json_value):
-        """
-        :param: JSON
-        :returns: *native value*
-        :raises: :exc:`~teleport.Invalid`
-        """
-        raise NotImplementedError()
-
-    def deserialize_iter(self, T, json_value):
-        """
-        :param: JSON
-        :returns: generator of :exc:`~teleport.Invalid` instances
-        :raises: :exc:`~teleport.ForceReturn`
-        """
-        raise NotImplementedError()
 
 
 class T(object):
@@ -178,7 +143,9 @@ class T(object):
     @classmethod
     def register(cls, name):
         """Used as a decorator to add a type to the type map.
+
         .. code-block:: python
+
             @t.register("Truth")
             class TruthType(object):
                 def check(self, value):
@@ -209,12 +176,6 @@ class T(object):
                 return True
             except Invalid:
                 return False
-        elif self.imp.deserialize_iter:
-            try:
-                list(self.imp.deserialize_iter(json_value))
-                return False
-            except ForceReturn as ret:
-                return True
         else:
             raise NotImplementedError("check or deserialize necessary")
 
@@ -232,39 +193,13 @@ class T(object):
         """
         if self.imp.deserialize:
             return self.imp.deserialize(json_value)
-        elif self.imp.deserialize_iter:
-            try:
-                exceptions = list(self.imp.deserialize_iter(json_value))
-                if len(exceptions) == 0:
-                    raise RuntimeError("deserialize_iter didn't return anything")
-                raise ValidationError(exceptions)
-            except ForceReturn as ret:
-                return ret.value
         elif self.imp.check:
             if self.imp.check(json_value):
                 return json_value
             else:
                 raise Invalid("Invalid whatever it is")
         else:
-            raise NotImplementedError("check or deserialize necessary")
-
-    def deserialize_iter(self, json_value):
-        """Yields :exc:`~teleport.Invalid`, raises :exc:`~teleport.ForceReturn`
-        """
-        if self.imp.deserialize_iter:
-            for err in self.imp.deserialize_iter(json_value):
-                yield err
-        elif self.imp.deserialize:
-            try:
-                ret = self.imp.deserialize(json_value)
-                raise ForceReturn(ret)
-            except Invalid as err:
-                yield err
-        elif self.imp.check:
-            if self.imp.check(json_value) == True:
-                raise ForceReturn(json_value)
-            else:
-                yield Invalid("Invalid")
+            raise NotImplementedError()
 
     def serialize(self, native_value):
         """Convert valid native value to JSON value. By default, this method
@@ -290,8 +225,8 @@ class ArrayType(object):
     def __init__(self, T, param):
         self.space = T(param)
 
-    def deserialize_iter(self, T, json_value):
-
+    @ErrorGenerator
+    def deserialize(self, T, json_value):
         if type(json_value) != list:
             yield Invalid("Must be list")
             return
@@ -300,11 +235,11 @@ class ArrayType(object):
         arr = []
         for i, item in enumerate(json_value):
             try:
-                for err in self.space.deserialize_iter(item):
-                    fail = True
+                arr.append(self.space.deserialize(item))
+            except IterableError as errs:
+                fail = True
+                for err in errs:
                     yield err.prepend_location(i)
-            except ForceReturn as ret:
-                arr.append(ret.value)
 
         if not fail:
             raise ForceReturn(arr)
@@ -319,7 +254,8 @@ class MapType(object):
     def __init__(self, T, param):
         self.space = T(param)
 
-    def deserialize_iter(self, T, json_value):
+    @ErrorGenerator
+    def deserialize(self, T, json_value):
 
         if type(json_value) != dict:
             yield Invalid("Must be dict")
@@ -329,11 +265,11 @@ class MapType(object):
         m = {}
         for key, val in json_value.items():
             try:
-                for err in self.space.deserialize_iter(val):
-                    fail = True
+                m[key] = self.space.deserialize(val)
+            except IterableError as errs:
+                fail = True
+                for err in errs:
                     yield err.prepend_location(key)
-            except ForceReturn as ret:
-                m[key] = ret.value
 
         if not fail:
             raise ForceReturn(m)
@@ -369,7 +305,8 @@ class StructType(object):
         if not self.opt.isdisjoint(self.req):
             raise Invalid("Hwoah")
 
-    def deserialize_iter(self, T, json_value):
+    @ErrorGenerator
+    def deserialize(self, T, json_value):
 
         if type(json_value) != dict:
             yield Invalid("Dict expected")
@@ -393,11 +330,11 @@ class StructType(object):
                 continue
 
             try:
-                for err in self.schemas[k].deserialize_iter(v):
-                    fail = True
+                struct[k] = self.schemas[k].deserialize(v)
+            except IterableError as errs:
+                fail = True
+                for err in errs:
                     yield err.prepend_location(k)
-            except ForceReturn as ret:
-                struct[k] = ret.value
 
         if not fail:
             raise ForceReturn(struct)

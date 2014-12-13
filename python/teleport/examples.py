@@ -12,8 +12,8 @@ class T(OriginalT):
 @T.register("Color")
 class ColorType(object):
 
-    def check(self, T, value):
-        if not T("String").check(value):
+    def check(self, t, value):
+        if not t("String").check(value):
             return False
         return re.compile('^#[0-9a-f]{6}$').match(value) is not None
 
@@ -21,15 +21,15 @@ class ColorType(object):
 @T.register("Nullable")
 class NullableType(object):
 
-    def __init__(self, T, param):
-        self.child = T(param)
+    def __init__(self, t, param):
+        self.child = t(param)
 
-    def deserialize(self, T, value):
+    def deserialize(self, t, value):
         if value is None:
             return None
         return self.child.deserialize(value)
 
-    def serialize(self, T, value):
+    def serialize(self, t, value):
         if value is None:
             return None
         return self.child.serialize(value)

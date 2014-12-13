@@ -100,8 +100,8 @@ class ErrorTest(TestCase):
                 "tags": ["a", True],
                 "lol": 1
             })
-        except ValidationError as m:
-            pass
+        except Exception as exc:
+            import pdb; pdb.set_trace()
             """
             import pdb; pdb.set_trace()
             self.assertEqual(m.serialize(), [
