@@ -1,7 +1,7 @@
 import re
 import pickle
 
-from teleport import Invalid
+from teleport import Errors
 from teleport import T as OriginalT
 
 
@@ -40,11 +40,11 @@ class PythonObjectType(object):
 
     def deserialize(self, T, json_value):
         if not T("String").check(json_value):
-            raise Invalid("PythonObject must be a string")
+            raise Errors(["PythonObject must be a string"])
         try:
             return pickle.loads(json_value)
         except:
-            raise Invalid("PythonObject could not be unpickled")
+            raise Errors(["PythonObject could not be unpickled"])
 
     def serialize(self, T, native_value):
         return pickle.dumps(native_value)

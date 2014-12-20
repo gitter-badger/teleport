@@ -2,11 +2,11 @@ from __future__ import unicode_literals
 
 import json
 import pyrfc3339
-from collections import OrderedDict, namedtuple
+from collections import namedtuple
 from functools import partial
 
 from .compat import test_integer, test_long, normalize_string
-from .util import utc, format_multiple_errors, ErrorGenerator, ForceReturn, Errors, IterableError
+from .util import *
 
 
 Implementation = namedtuple("Implementation", [
@@ -50,35 +50,6 @@ def bind_generic(imp, T, json_param):
         deserialize=partial2(imp.deserialize, param, T))
 
 
-class Invalid(IterableError):
-
-    def __init__(self, message, location=()):
-        self.message = message
-        self.location = location
-
-    def serialize(self):
-        return OrderedDict([
-            ("message", self.message),
-            ("pointer", list(self.location))
-        ])
-
-    def prepend_location(self, item):
-        return self.__class__(self.message, (item,) + self.location)
-
-
-class ValidationError(Invalid):
-
-    def __init__(self, exceptions):
-        self.exceptions = exceptions
-
-    def serialize(self):
-        return [e.serialize() for e in self.exceptions]
-
-    def __str__(self):
-        tups = [(e.message, e.location) for e in self.exceptions]
-        return format_multiple_errors(tups)
-
-
 class T(object):
     """Conceptually, an instance of this class is a value space, a set of
     JSON values. As such, the only method defined by the Teleport specification
@@ -102,7 +73,7 @@ class T(object):
         if s is not None:
             imp = self.__class__.get_type_or_fail(s)
             if type(imp) != BoundImplementation:
-                raise Invalid("Not a concrete type: \"{}\"".format(s))
+                raise Errors(["Not a concrete type: \"{}\"".format(s)])
 
             self.imp = imp
 
@@ -112,12 +83,12 @@ class T(object):
             imp = self.__class__.get_type_or_fail(name)
 
             if type(imp) != Implementation:
-                raise Invalid("Not a generic type: \"{}\"".format(name))
+                raise Errors(["Not a generic type: \"{}\"".format(name)])
 
             self.imp = bind_generic(imp, self.__class__, param)
 
         else:
-            raise Invalid("Unrecognized schema {}".format(schema))
+            raise Errors(["Unrecognized schema {}".format(schema)])
 
     @classmethod
     def get_type_or_fail(cls, name):
@@ -125,7 +96,7 @@ class T(object):
         if type_cls is None:
             type_cls = cls.get_type_hook(name)
         if type_cls is None:
-            raise Invalid("Unknown type {}".format(name))
+            raise Errors(["Unknown type {}".format(name)])
         return type_cls
 
     @classmethod
@@ -133,7 +104,7 @@ class T(object):
         """Override this method to enapble dynamic type search. It gets called
         if the requested type is neither a core type nor a type added by
         :meth:`register`. In that case, this is the last resort before
-        :exc:`~teleport.core.Invalid` is thrown.
+        :exc:`~teleport.core.Errors` is thrown.
 
         :param name: a string
         :return: a subclass of :class:`~teleport.Type` or None
@@ -174,15 +145,15 @@ class T(object):
             try:
                 self.imp.deserialize(json_value)
                 return True
-            except Invalid:
+            except Errors:
                 return False
         else:
             raise NotImplementedError("check or deserialize necessary")
 
     def deserialize(self, json_value):
-        """Raises :exc:`~teleport.Invalid`, returns *native value*.
+        """Raises :exc:`~teleport.Errors`, returns *native value*.
 
-        Convert JSON value to native value. Raises :exc:`Invalid` if
+        Convert JSON value to native value. Raises :exc:`Errors` if
         *json_value* is not a member of this type. By default, this method
         returns the JSON value unchanged.
 
@@ -197,7 +168,7 @@ class T(object):
             if self.imp.check(json_value):
                 return json_value
             else:
-                raise Invalid("Invalid whatever it is")
+                raise Errors(["Invalid whatever it is"])
         else:
             raise NotImplementedError()
 
@@ -228,7 +199,7 @@ class ArrayType(object):
     @ErrorGenerator
     def deserialize(self, T, json_value):
         if type(json_value) != list:
-            yield Invalid("Must be list")
+            yield "Must be list"
             return
 
         fail = False
@@ -236,10 +207,10 @@ class ArrayType(object):
         for i, item in enumerate(json_value):
             try:
                 arr.append(self.space.deserialize(item))
-            except IterableError as errs:
+            except Errors as errs:
                 fail = True
                 for err in errs:
-                    yield err.prepend_location(i)
+                    yield error(err, loc=i)
 
         if not fail:
             raise ForceReturn(arr)
@@ -258,7 +229,7 @@ class MapType(object):
     def deserialize(self, T, json_value):
 
         if type(json_value) != dict:
-            yield Invalid("Must be dict")
+            yield "Must be dict"
             return
 
         fail = False
@@ -266,10 +237,10 @@ class MapType(object):
         for key, val in json_value.items():
             try:
                 m[key] = self.space.deserialize(val)
-            except IterableError as errs:
+            except Errors as errs:
                 fail = True
                 for err in errs:
-                    yield err.prepend_location(key)
+                    yield error(err, loc=key)
 
         if not fail:
             raise ForceReturn(m)
@@ -289,12 +260,12 @@ class StructType(object):
         expected = {'required', 'optional'}
 
         if type(param) != dict or not expected.issubset(set(param.keys())):
-            raise Invalid("Boom")
+            raise Errors(["Boom"])
 
         self.schemas = {}
         for kind in expected:
             if type(param[kind]) != dict:
-                raise Invalid("Bang")
+                raise Errors(["Bang"])
 
             for k, s in param[kind].items():
                 self.schemas[k] = T(s)
@@ -303,13 +274,13 @@ class StructType(object):
         self.req = set(param['required'].keys())
 
         if not self.opt.isdisjoint(self.req):
-            raise Invalid("Hwoah")
+            raise Errors(["Hwoah"])
 
     @ErrorGenerator
     def deserialize(self, T, json_value):
 
         if type(json_value) != dict:
-            yield Invalid("Dict expected")
+            yield "Dict expected"
             return
 
         fail = False
@@ -317,12 +288,12 @@ class StructType(object):
         for k in self.req:
             if k not in json_value:
                 fail = True
-                yield Invalid("Missing field: {}".format(json.dumps(k)))
+                yield "Missing field: {}".format(json.dumps(k))
 
         for k in json_value.keys():
             if k not in self.schemas.keys():
                 fail = True
-                yield Invalid("Unexpected field: {}".format(json.dumps(k)))
+                yield "Unexpected field: {}".format(json.dumps(k))
 
         struct = {}
         for k, v in json_value.items():
@@ -331,10 +302,10 @@ class StructType(object):
 
             try:
                 struct[k] = self.schemas[k].deserialize(v)
-            except IterableError as errs:
+            except Errors as errs:
                 fail = True
                 for err in errs:
-                    yield err.prepend_location(k)
+                    yield error(err, loc=k)
 
         if not fail:
             raise ForceReturn(struct)
@@ -372,7 +343,7 @@ class StringType(object):
         s = normalize_string(value)
         if s is not None:
             return s
-        raise Invalid("Not a string")
+        raise Errors(["Not a string"])
 
 
 @T.register("Boolean")
@@ -388,7 +359,7 @@ class DateTimeType(object):
         try:
             return pyrfc3339.parse(value)
         except (TypeError, ValueError):
-            raise Invalid("Invalid DateTime")
+            raise Errors(["Invalid DateTime"])
 
     def serialize(self, T, value):
         return pyrfc3339.generate(value, accept_naive=True, microseconds=True)
@@ -401,5 +372,5 @@ class SchemaType(object):
         try:
             T(value)
             return True
-        except Invalid:
+        except Errors:
             return False

@@ -6,7 +6,7 @@ Errors and Exceptions
 .. autoclass:: teleport.Invalid
    :members:
 
-.. autoclass:: teleport.ValidationError
+.. autoclass:: teleport.TypeError
    :members:
 
 .. autoclass:: teleport.ForceReturn

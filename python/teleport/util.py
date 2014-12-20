@@ -1,6 +1,9 @@
 from __future__ import unicode_literals
-
+from collections import OrderedDict
 from datetime import tzinfo, timedelta
+
+from .compat import normalize_string
+
 import itertools
 
 
@@ -40,25 +43,41 @@ def format_multiple_errors(errors):
     return ret
 
 
+def error(err, loc=None):
+    if type(err) == tuple:
+        text, location = err
+    else:
+        text = normalize_string(err)
+        if text is None:
+            raise TypeError("tuple or string expected as first argument", err)
+        location = ()
+
+    if loc is not None:
+        location = (loc,) + location
+
+    return text, location
+
+
+class Impossible(Exception):
+    """"""
+
 class ForceReturn(Exception):
     """Not an error, return value from error iterator"""
     def __init__(self, value):
         self.value = value
 
 
-class IterableError(Exception):
+class Errors(Exception):
+
+    def __init__(self, errors):
+        self.errors = errors
+
+    def __str__(self):
+        return format_multiple_errors(list(self))
 
     def __iter__(self):
-        yield self
-
-
-class Errors(IterableError):
-
-    def __init__(self, generator):
-        self.generator = generator
-
-    def __iter__(self):
-        return self.generator
+        for e in self.errors:
+            yield error(e)
 
 
 class IncorrectErrorGenerator(Exception):
@@ -68,7 +87,7 @@ class IncorrectErrorGenerator(Exception):
 class ErrorGenerator(object):
 
     def __init__(self, f):
-        self.f = f
+        setattr(self, 'f', f)
 
     def __call__(self, *args, **kwargs):
         try:

@@ -1,7 +1,7 @@
 from unittest2 import TestCase
 from datetime import datetime
 
-from teleport import T, utc, Invalid, ValidationError
+from teleport import T, utc, Errors
 from teleport.compat import PY2
 
 t = T
@@ -102,6 +102,7 @@ class ErrorTest(TestCase):
             })
         except Exception as exc:
             import pdb; pdb.set_trace()
+
             """
             import pdb; pdb.set_trace()
             self.assertEqual(m.serialize(), [
