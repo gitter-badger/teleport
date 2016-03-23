@@ -1,0 +1,10 @@
+teleport.Teleport
+
+-cp src
+-python dist/libteleport.py
+
+--next
+
+-cp src
+-main teleport.TestSuite
+-python dist/runtests.py

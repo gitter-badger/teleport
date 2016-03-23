@@ -29,10 +29,9 @@
 ################################################
 
 /.env
-/build
-/dist
 /node_modules
 /Makefile
+/python/teleport/libteleport.py
 
 ################################################
 # Python
@@ -77,16 +76,3 @@ htmlcov/
 .cache
 nosetests.xml
 coverage.xml
-
-# Translations
-
-*.mo
-*.pot
-
-# Django stuff
-
-*.log
-
-# Sphinx documentation
-
-_build

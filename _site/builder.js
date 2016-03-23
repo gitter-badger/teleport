@@ -175,8 +175,7 @@ var googleFonts = function (googleUrl) {
                 (cd ${tmp} && wget -i download.list)
                 mkdir ${tmp}/out
                 cp ${tmp}/*.ttf ${tmp}/out
-                sed 's/http.*\\/\\(.*\\.ttf\\)/\"..\\/fonts\\/\\1\"/g' < ${tmp}/index.css > ${tmp}/out/index.css
-            `;
+                sed 's/http.*\\/\\(.*\\.ttf\\)/\"..\\/fonts\\/\\1\"/g' < ${tmp}/index.css > ${tmp}/out/index.css`;
         }
     });
 };
@@ -214,8 +213,7 @@ var pythonVenv = function (version) {
                 python${version} -m venv --without-pip ${tmp}
                 wget https://bootstrap.pypa.io/get-pip.py -P ${tmp}
                 ${tmp}/bin/python ${tmp}/get-pip.py
-                ${tmp}/bin/pip install sphinx
-            `;
+                ${tmp}/bin/pip install sphinx`;
         }
     });
 };
@@ -245,8 +243,7 @@ var pythonDocs = function (version, venv) {
                 echo '\\nhtml_theme_path = ["../../flask-sphinx-themes/flask-sphinx-themes-master"]\\n' >> ${tmp}/python/docs/conf.py
                 echo '\\nintersphinx_mapping = {"python": ("http://docs.python.org/2.7", "python2.inv")}\\n' >> ${tmp}/python/docs/conf.py
                 (cd ${tmp}/python; ../venv/bin/python setup.py install)
-                (cd ${tmp}/python; ../venv/bin/python ../venv/bin/sphinx-build -b html -D html_theme=flask docs out)
-            `;
+                (cd ${tmp}/python; ../venv/bin/python ../venv/bin/sphinx-build -b html -D html_theme=flask docs out)`;
         }
     });
 };
@@ -264,8 +261,7 @@ var formatSpec = function (version) {
             return `
                 xml2rfc --no-network _spec/${version}.xml --text --out=${tmp}/teleport.txt
                 mkdir ${tmp}/out
-                node _site/spec.js < ${tmp}/teleport.txt > ${tmp}/out/index.html
-            `;
+                node _site/spec.js < ${tmp}/teleport.txt > ${tmp}/out/index.html`;
         }
     });
 };
@@ -304,8 +300,36 @@ var dist = function(name, src) {
         commands: normalizeCommands(`
             rm -rf ${distDir}
             mkdir -p ${distDir}
-            tar xf ${src.getFilename()} -C ${distDir}
-        `)
+            tar xf ${src.getFilename()} -C ${distDir}`)
+    });
+};
+
+var haxeBuild = function(version) {
+    return new BuildTarget({
+        archive: `haxe-${version}`,
+        staticDeps: glob.sync(`haxe/${version}/**`),
+        resultDir: '/haxe/dist',
+        getCommands: function (tmp) {
+            return `
+                cp -R haxe/${version} ${tmp}/haxe
+                (cd ${tmp}/haxe; haxe build.hxml)
+                (cd ${tmp}/haxe; python3 dist/runtests.py)`;
+        }
+    });
+};
+
+var pythonBuild = function(version, haxe) {
+    return new BuildTarget({
+        archive: `python-${version}`,
+        resultDir: "/python",
+        staticDeps: glob.sync(`python/${version}/**`),
+        mounts: {'/haxe': haxe},
+        getCommands: function (tmp) {
+            return `
+                cp -R python/${version} ${tmp}/python
+                cp ${tmp}/haxe/libteleport.py ${tmp}/python/teleport
+                (cd ${tmp}/python; python3 setup.py test)`;
+        }
     });
 };
 
@@ -323,6 +347,8 @@ module.exports = {
     pythonVenv: pythonVenv,
     pythonDocs: pythonDocs,
     formatSpec: formatSpec,
+    pythonBuild: pythonBuild,
+    haxeBuild: haxeBuild,
     inject: inject,
     dist: dist
 };

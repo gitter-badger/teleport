@@ -1,9 +1,8 @@
 var path = require("path");
 var fs = require("fs");
-var builder = require("./builder/builder");
+var builder = require("./builder");
 var glob = require("glob");
 var bin = "node_modules/.bin";
-
 
 var pythonBuildVenv = builder.pythonVenv("3.5");
 
@@ -118,6 +117,11 @@ makefile.addTask(
     "deploy",
     `${bin}/surge --project ${siteDistGA.getFilename()} --domain www.teleport-json.org`
 );
+
+makefile.addRule(
+    builder.pythonBuild('0.5',
+        builder.haxeBuild('0.1')));
+
 
 if (require.main === module) {
     fs.writeFileSync(`${rootDir}/Makefile`, makefile.toString())
