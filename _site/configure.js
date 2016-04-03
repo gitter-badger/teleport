@@ -62,13 +62,13 @@ var site = new builder.BuildTarget({
     mounts: {
         "/static/bootstrap": bootstrap,
         "/python/0.4": builder.inject(
-            builder.pythonDocs("0.4", pythonBuildVenv),
+            builder.zipFile("docs-python-0.4", "_site/archive/docs-python-0.4.zip"),
             "--navbar 'python/0.4' --bs"),
         "/python/0.3": builder.inject(
-            builder.pythonDocs("0.3", pythonBuildVenv),
+            builder.zipFile("docs-python-0.3", "_site/archive/docs-python-0.3.zip"),
             "--navbar 'python/0.3' --bs"),
         "/python/0.2": builder.inject(
-            builder.pythonDocs("0.2", pythonBuildVenv),
+            builder.zipFile("docs-python-0.2", "_site/archive/docs-python-0.2.zip"),
             "--navbar 'python/0.2' --bs"),
         "/spec/draft-00": builder.inject(
             builder.formatSpec("draft-00"),
